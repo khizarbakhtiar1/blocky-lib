@@ -48,34 +48,34 @@ func main() {
 		log.Fatalf("Failed to connect: %v", err)
 	}
 
-	fmt.Println("✅ Connected to multiple chains!")
-	
+	fmt.Println("Connected to multiple chains!")
+
 	// Example: Check balance on multiple chains
 	address := types.MustAddressFromHex("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")
-	
+
 	for _, chainName := range bcClient.ChainNames() {
 		balance, err := bcClient.GetBalance(ctx, chainName, address)
 		if err != nil {
 			log.Printf("Failed to get balance on %s: %v", chainName, err)
 			continue
 		}
-		
+
 		etherBalance := types.WeiToEther(balance)
 		fmt.Printf("%s balance: %s\n", chainName, etherBalance)
 	}
 
 	// Example: Build a transaction (not signed, just constructed)
-	fmt.Println("\n📝 Building a transaction...")
-	
+	fmt.Println("\nBuilding a transaction...")
+
 	toAddress := types.MustAddressFromHex("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	value := types.EtherToWei(big.NewInt(1)) // 1 ETH
-	
+
 	tx, err := transaction.Transfer(toAddress, value, chains.EthereumSepolia).
 		Nonce(0).
-		MaxFeePerGas(big.NewInt(30000000000)).         // 30 gwei
-		MaxPriorityFeePerGas(big.NewInt(2000000000)).  // 2 gwei
+		MaxFeePerGas(big.NewInt(30000000000)).        // 30 gwei
+		MaxPriorityFeePerGas(big.NewInt(2000000000)). // 2 gwei
 		Build()
-	
+
 	if err != nil {
 		log.Fatalf("Failed to build transaction: %v", err)
 	}
@@ -94,8 +94,7 @@ func main() {
 		fmt.Printf("  Estimated Gas: %d\n", estimatedGas)
 	}
 
-	fmt.Println("\n💡 Note: To actually send this transaction, you would need to:")
+	fmt.Println("\nNote: To actually send this transaction, you would need to:")
 	fmt.Println("  1. Sign it with a wallet's private key")
 	fmt.Println("  2. Use SendRawTransaction to broadcast it")
 }
-

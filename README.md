@@ -2,11 +2,11 @@
 
 A unified, developer-friendly Go library for interacting with multiple blockchain networks.
 
-## 🎯 Vision
+## Vision
 
 Provide Go developers with a simple, type-safe, and performant SDK for building multi-chain blockchain applications without the complexity of managing multiple chain-specific libraries.
 
-## ✨ Key Features (Planned)
+## Key Features (Planned)
 
 - **Multi-Chain Support**: Ethereum, Polygon, Arbitrum, Optimism, Base, and more EVM chains
 - **Unified Interface**: Single API for all supported blockchains
@@ -16,7 +16,7 @@ Provide Go developers with a simple, type-safe, and performant SDK for building 
 - **Developer Experience**: Comprehensive documentation, examples, and error messages
 - **Extensible**: Easy to add support for new chains and protocols
 
-## 🚀 Quick Start (Future)
+## Quick Start (Future)
 
 ```go
 package main
@@ -49,7 +49,7 @@ func main() {
 }
 ```
 
-## 📋 Roadmap
+## Roadmap
 
 ### Phase 1: Foundation (Q1 2025)
 - [ ] Core client architecture
@@ -82,7 +82,7 @@ func main() {
 - [ ] Performance benchmarks
 - [ ] Community chain additions
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 bc-lib/
@@ -97,21 +97,16 @@ bc-lib/
 └── examples/        # Usage examples
 ```
 
-## 🤝 Contributing
+## Contributing
 
 This project is in early development. Contributions, ideas, and feedback are welcome!
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-## 📄 License
+## License
 
-MIT License (TBD)
-
-## 🔗 Resources
-
-- [Market Analysis](./MARKET_ANALYSIS.md) - Detailed market research and gap analysis
-- [Implementation Plan](./IMPLEMENTATION_PLAN.md) - Technical implementation details
+MIT License
 
 ---
 
-**Status**: 📋 Planning Phase  
-**Next**: Architecture design and MVP development
+**Status**: Active Development (MVP Phase 1 Complete)
 

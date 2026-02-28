@@ -39,11 +39,11 @@ func main() {
 		log.Fatalf("Failed to connect: %v", err)
 	}
 
-	fmt.Println("✅ Connected to Ethereum Sepolia!")
+	fmt.Println("Connected to Ethereum Sepolia!")
 
 	// Example address (Vitalik's address)
 	address := types.MustAddressFromHex("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")
-	
+
 	// Get balance
 	balance, err := bcClient.GetBalance(ctx, "ethereum", address)
 	if err != nil {
@@ -78,4 +78,3 @@ func main() {
 	gasPriceGwei := types.WeiToGwei(gasPrice)
 	fmt.Printf("Gas price: %s gwei\n", gasPriceGwei)
 }
-

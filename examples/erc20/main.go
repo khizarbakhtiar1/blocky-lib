@@ -40,7 +40,7 @@ func main() {
 		log.Fatalf("Failed to connect: %v", err)
 	}
 
-	fmt.Println("✅ Connected to Ethereum Mainnet!")
+	fmt.Println("Connected to Ethereum Mainnet!")
 
 	// Get the Ethereum chain
 	ethChain, err := bcClient.GetChain("ethereum")
@@ -49,7 +49,7 @@ func main() {
 	}
 
 	// Example 1: Get USDT token info
-	fmt.Println("\n📊 USDT Token Info:")
+	fmt.Println("\nUSDT Token Info:")
 	usdtAddr, _ := tokens.GetTokenAddress("USDT", 1)
 	usdt := tokens.NewERC20(usdtAddr, ethChain)
 
@@ -83,7 +83,7 @@ func main() {
 	}
 
 	// Example 2: Check USDT balance of a whale address
-	fmt.Println("\n💰 USDT Balance Check:")
+	fmt.Println("\nUSDT Balance Check:")
 	whaleAddr := types.MustAddressFromHex("0x28C6c06298d514Db089934071355E5743bf21d60") // Binance 14
 
 	balance, err := usdt.BalanceOf(ctx, whaleAddr)
@@ -96,7 +96,7 @@ func main() {
 	}
 
 	// Example 3: Get USDC token info
-	fmt.Println("\n📊 USDC Token Info:")
+	fmt.Println("\nUSDC Token Info:")
 	usdcAddr, _ := tokens.GetTokenAddress("USDC", 1)
 	usdc := tokens.NewERC20(usdcAddr, ethChain)
 
@@ -106,7 +106,7 @@ func main() {
 	fmt.Printf("  Decimals: %d\n", usdcDecimals)
 
 	// Example 4: Build a transfer calldata (without executing)
-	fmt.Println("\n📝 Building Transfer Calldata:")
+	fmt.Println("\nBuilding Transfer Calldata:")
 	toAddress := types.MustAddressFromHex("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	amount, _ := tokens.ParseUnits("100", 6) // 100 USDT (6 decimals)
 
@@ -116,17 +116,17 @@ func main() {
 	fmt.Printf("  (truncated, full length: %d bytes)\n", len(transferData))
 
 	// Example 5: Build an approval calldata
-	fmt.Println("\n📝 Building Approval Calldata:")
+	fmt.Println("\nBuilding Approval Calldata:")
 	spender := types.MustAddressFromHex("0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D") // Uniswap V2 Router
-	maxAmount, _ := tokens.ParseUnits("1000000", 6) // 1M USDT approval
+	maxAmount, _ := tokens.ParseUnits("1000000", 6)                                   // 1M USDT approval
 
 	approveData := usdt.ApproveData(spender, maxAmount)
 	fmt.Printf("  Approve Uniswap to spend 1M USDT\n")
 	fmt.Printf("  Calldata: 0x%x\n", approveData[:20])
 	fmt.Printf("  (truncated, full length: %d bytes)\n", len(approveData))
 
-	fmt.Println("\n✨ Example complete!")
-	fmt.Println("\n💡 Note: This example only reads data. To execute transfers,")
+	fmt.Println("\nExample complete!")
+	fmt.Println("\nNote: This example only reads data. To execute transfers,")
 	fmt.Println("   you would need to:")
 	fmt.Println("   1. Create a wallet with a private key")
 	fmt.Println("   2. Build a transaction with the calldata")

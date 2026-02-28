@@ -30,12 +30,19 @@ func Keccak256Hash(data ...[]byte) types.Hash {
 // PubkeyToAddress converts an ECDSA public key to an Ethereum address
 func PubkeyToAddress(pubkey *ecdsa.PublicKey) types.Address {
 	// Serialize the public key (uncompressed, without the 0x04 prefix)
-	pubBytes := append(pubkey.X.Bytes(), pubkey.Y.Bytes()...)
-	
-	// Hash it
+	// Each coordinate must be exactly 32 bytes, left-padded with zeros
+	xBytes := make([]byte, 32)
+	yBytes := make([]byte, 32)
+	xB := pubkey.X.Bytes()
+	yB := pubkey.Y.Bytes()
+	copy(xBytes[32-len(xB):], xB)
+	copy(yBytes[32-len(yB):], yB)
+	pubBytes := append(xBytes, yBytes...)
+
+	// Keccak-256 hash of the public key
 	hash := Keccak256(pubBytes)
-	
-	// Take the last 20 bytes
+
+	// Take the last 20 bytes as the address
 	var addr types.Address
 	copy(addr[:], hash[12:])
 	return addr
@@ -54,34 +61,38 @@ func Sign(hash []byte, privateKey *ecdsa.PrivateKey) ([]byte, error) {
 	if len(hash) != 32 {
 		return nil, fmt.Errorf("hash must be 32 bytes")
 	}
-	
+
 	// Sign the hash
 	r, s, err := ecdsa.Sign(rand.Reader, privateKey, hash)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Serialize signature
 	sig := make([]byte, 65)
 	copy(sig[0:32], r.Bytes())
 	copy(sig[32:64], s.Bytes())
 	// V will be set based on chain ID during transaction signing
 	sig[64] = 0
-	
+
 	return sig, nil
 }
 
-// VerifySignature verifies a signature
+// VerifySignature verifies an ECDSA signature against a public key and hash.
+// pubkey must be a 64-byte uncompressed public key (X || Y, without the 0x04 prefix).
+// signature must be 65 bytes in [R || S || V] format.
 func VerifySignature(pubkey, hash, signature []byte) bool {
-	if len(signature) != 65 {
+	if len(signature) != 65 || len(pubkey) != 64 || len(hash) != 32 {
 		return false
 	}
-	
+
 	r := new(big.Int).SetBytes(signature[0:32])
 	s := new(big.Int).SetBytes(signature[32:64])
-	
-	// Recover public key from signature
-	// This is simplified - full implementation would use secp256k1
-	return r != nil && s != nil
-}
 
+	curve := S256()
+	x := new(big.Int).SetBytes(pubkey[0:32])
+	y := new(big.Int).SetBytes(pubkey[32:64])
+	pub := &ecdsa.PublicKey{Curve: curve, X: x, Y: y}
+
+	return ecdsa.Verify(pub, hash, r, s)
+}

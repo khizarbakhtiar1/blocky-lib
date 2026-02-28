@@ -1,6 +1,6 @@
 # Contributing to bc-lib
 
-First off, thank you for considering contributing to bc-lib! 🎉
+First off, thank you for considering contributing to bc-lib!
 
 ## How Can I Contribute?
 
@@ -166,5 +166,5 @@ Feel free to open an issue with the `question` label, or reach out to the mainta
 
 By contributing, you agree that your contributions will be licensed under the MIT License.
 
-Thank you for contributing to bc-lib! 🚀
+Thank you for contributing to bc-lib!
 

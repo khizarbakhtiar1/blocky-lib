@@ -75,15 +75,15 @@ func ParseEther(s string) (*big.Int, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid ether value: %s", s)
 	}
-	
+
 	// Multiply by 1e18
 	multiplier := new(big.Float).SetInt(big.NewInt(1e18))
 	f.Mul(f, multiplier)
-	
+
 	// Convert to big.Int
 	result := new(big.Int)
 	f.Int(result)
-	
+
 	return result, nil
 }
 
@@ -92,11 +92,11 @@ func FormatEther(wei *big.Int) string {
 	if wei == nil {
 		return "0"
 	}
-	
+
 	ether := new(big.Float).SetInt(wei)
 	divisor := new(big.Float).SetInt(big.NewInt(1e18))
 	ether.Quo(ether, divisor)
-	
+
 	return ether.Text('f', 18)
 }
 
@@ -105,11 +105,10 @@ func FormatGwei(wei *big.Int) string {
 	if wei == nil {
 		return "0"
 	}
-	
+
 	gwei := new(big.Float).SetInt(wei)
 	divisor := new(big.Float).SetInt(big.NewInt(1e9))
 	gwei.Quo(gwei, divisor)
-	
+
 	return gwei.Text('f', 9)
 }
-

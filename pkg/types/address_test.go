@@ -56,7 +56,7 @@ func TestAddressFromHex(t *testing.T) {
 func TestAddressString(t *testing.T) {
 	addr := MustAddressFromHex("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	str := addr.String()
-	
+
 	assert.True(t, len(str) > 0)
 	assert.Contains(t, str, "0x")
 }
@@ -64,7 +64,7 @@ func TestAddressString(t *testing.T) {
 func TestAddressIsZero(t *testing.T) {
 	zero := ZeroAddress()
 	assert.True(t, zero.IsZero())
-	
+
 	nonZero := MustAddressFromHex("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	assert.False(t, nonZero.IsZero())
 }
@@ -72,7 +72,7 @@ func TestAddressIsZero(t *testing.T) {
 func TestAddressBytes(t *testing.T) {
 	addr := MustAddressFromHex("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	bytes := addr.Bytes()
-	
+
 	assert.Equal(t, 20, len(bytes))
 }
 
@@ -115,7 +115,7 @@ func TestHashFromHex(t *testing.T) {
 func TestHashString(t *testing.T) {
 	hash := MustHashFromHex("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
 	str := hash.String()
-	
+
 	assert.True(t, len(str) > 0)
 	assert.Contains(t, str, "0x")
 }
@@ -123,7 +123,7 @@ func TestHashString(t *testing.T) {
 func TestHashIsZero(t *testing.T) {
 	zero := ZeroHash()
 	assert.True(t, zero.IsZero())
-	
+
 	nonZero := MustHashFromHex("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
 	assert.False(t, nonZero.IsZero())
 }
@@ -133,7 +133,7 @@ func TestMustAddressFromHex(t *testing.T) {
 	assert.NotPanics(t, func() {
 		MustAddressFromHex("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	})
-	
+
 	// Should panic with invalid address
 	assert.Panics(t, func() {
 		MustAddressFromHex("invalid")
@@ -144,7 +144,7 @@ func TestAddressValidate(t *testing.T) {
 	zero := ZeroAddress()
 	err := zero.Validate()
 	assert.Error(t, err)
-	
+
 	valid := MustAddressFromHex("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	err = valid.Validate()
 	assert.NoError(t, err)
@@ -156,7 +156,7 @@ func TestNewAddress(t *testing.T) {
 	addr, err := NewAddress(bytes)
 	require.NoError(t, err)
 	assert.Equal(t, 20, len(addr))
-	
+
 	// Invalid length
 	invalidBytes := make([]byte, 10)
 	_, err = NewAddress(invalidBytes)
@@ -169,10 +169,9 @@ func TestNewHash(t *testing.T) {
 	hash, err := NewHash(bytes)
 	require.NoError(t, err)
 	assert.Equal(t, 32, len(hash))
-	
+
 	// Invalid length
 	invalidBytes := make([]byte, 10)
 	_, err = NewHash(invalidBytes)
 	assert.Error(t, err)
 }
-

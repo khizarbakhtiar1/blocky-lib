@@ -17,10 +17,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-chain client orchestration
 - Transaction builder with fluent API
 - Wallet functionality for key management
-- Comprehensive test suite for types
-- Balance query example
-- Multi-chain transfer example
+- Comprehensive test suite
+- Balance, transfer, ERC-20, and signing examples
 - Getting started documentation
+
+### Cryptography
+- Real **secp256k1** curve implementation (replacing the earlier P-256 stand-in),
+  producing Ethereum-valid keys and addresses
+- Deterministic **RFC 6979** ECDSA signing with low-S normalization (EIP-2) and
+  recovery-id computation
+- Public-key recovery (`Ecrecover`/`SigToPub`) and signature verification
+- Validated against published vectors (private-key→address vectors and the
+  EIP-155 signed-transaction example, byte-for-byte)
+
+### Transaction Signing
+- RLP serialization for signing and broadcasting
+- Legacy (EIP-155), EIP-2930 (access list), and EIP-1559 transaction support
+- `wallet.SignTransaction` returns broadcast-ready raw bytes
+- `Sender` recovery to derive the signer address from a signed transaction
+- `ethereum.SendTransaction` broadcasts signed transactions
+- High-level client helpers: `PopulateTransaction` and `SignAndSendTransaction`
 
 ### Supported Chains
 - Ethereum (Mainnet, Sepolia)
@@ -31,22 +47,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Supported Operations
 - Get balance (current and historical)
-- Get block number
+- Get block (by number/hash) with full transaction decoding
+- Get transaction and transaction receipt
 - Get transaction count (nonce)
-- Estimate gas
-- Suggest gas price
-- Suggest gas tip cap (EIP-1559)
-- Send raw transaction
-- Network ID query
+- Estimate gas, suggest gas price / tip cap (EIP-1559)
+- Sign, send, and send-raw transactions
+- Contract calls (`eth_call`) and ERC-20 helpers
+- Event log filtering (`FilterLogs`) and polling-based subscriptions (`SubscribeToLogs`)
+- Network ID and sync status queries
 
 ### Coming Soon
-- Complete transaction signing with RLP encoding
-- Event log filtering and subscriptions
-- Contract interaction (ABI support)
-- ERC20/ERC721 token helpers
-- WebSocket support for real-time events
-- Solana support
+- Full ABI encoding/decoding
+- WebSocket transport for real-time events
+- Batch operations and benchmarks
+- ERC-721 helpers
+- Constant-time / hardened signing
 - Account abstraction (ERC-4337)
+- Non-EVM chains (e.g. Solana)
 
 ## [0.1.0] - TBD
 

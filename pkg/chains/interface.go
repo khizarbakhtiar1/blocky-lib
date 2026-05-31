@@ -15,38 +15,38 @@ type Chain interface {
 	IsConnected() bool
 	ChainID() *big.Int
 	Name() string
-	
+
 	// Balance queries
 	GetBalance(ctx context.Context, address types.Address) (*big.Int, error)
 	GetBalanceAt(ctx context.Context, address types.Address, blockNumber *big.Int) (*big.Int, error)
-	
+
 	// Transaction queries
 	GetTransaction(ctx context.Context, hash types.Hash) (*types.Transaction, error)
 	GetTransactionReceipt(ctx context.Context, hash types.Hash) (*types.Receipt, error)
 	GetTransactionCount(ctx context.Context, address types.Address) (uint64, error)
 	GetTransactionCountAt(ctx context.Context, address types.Address, blockNumber *big.Int) (uint64, error)
-	
+
 	// Block queries
 	GetBlockNumber(ctx context.Context) (*big.Int, error)
 	GetBlockByNumber(ctx context.Context, blockNumber *big.Int, fullTx bool) (*types.Block, error)
 	GetBlockByHash(ctx context.Context, hash types.Hash, fullTx bool) (*types.Block, error)
-	
+
 	// Transaction submission
 	SendRawTransaction(ctx context.Context, signedTx []byte) (types.Hash, error)
 	SendTransaction(ctx context.Context, tx *types.Transaction) (types.Hash, error)
-	
+
 	// Gas estimation
 	EstimateGas(ctx context.Context, tx *types.Transaction) (uint64, error)
 	SuggestGasPrice(ctx context.Context) (*big.Int, error)
 	SuggestGasTipCap(ctx context.Context) (*big.Int, error)
-	
+
 	// Contract interaction
 	CallContract(ctx context.Context, msg CallMsg, blockNumber *big.Int) ([]byte, error)
-	
+
 	// Event logs
 	FilterLogs(ctx context.Context, query LogQuery) ([]*types.Log, error)
 	SubscribeToLogs(ctx context.Context, query LogQuery) (<-chan *types.Log, error)
-	
+
 	// Network info
 	NetworkID(ctx context.Context) (*big.Int, error)
 	SyncProgress(ctx context.Context) (*SyncProgress, error)
@@ -129,4 +129,3 @@ func ChainName(chainID *big.Int) string {
 		return "Unknown Chain"
 	}
 }
-

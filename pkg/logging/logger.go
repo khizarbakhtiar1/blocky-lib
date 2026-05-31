@@ -127,20 +127,20 @@ func (l *DefaultLogger) log(level Level, msg string, fields []Field) {
 	if level < l.level {
 		return
 	}
-	
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	
+
 	timestamp := time.Now().Format(time.RFC3339)
-	
+
 	// Combine default fields with provided fields
 	allFields := append(l.fields, fields...)
-	
+
 	fieldStr := ""
 	for _, f := range allFields {
 		fieldStr += fmt.Sprintf(" %s=%v", f.Key, f.Value)
 	}
-	
+
 	fmt.Fprintf(l.output, "%s [%s] %s%s\n", timestamp, level.String(), msg, fieldStr)
 }
 
@@ -176,10 +176,10 @@ func (l *DefaultLogger) WithFields(fields ...Field) Logger {
 // NopLogger is a logger that does nothing
 type NopLogger struct{}
 
-func (NopLogger) Debug(msg string, fields ...Field) {}
-func (NopLogger) Info(msg string, fields ...Field)  {}
-func (NopLogger) Warn(msg string, fields ...Field)  {}
-func (NopLogger) Error(msg string, fields ...Field) {}
+func (NopLogger) Debug(msg string, fields ...Field)        {}
+func (NopLogger) Info(msg string, fields ...Field)         {}
+func (NopLogger) Warn(msg string, fields ...Field)         {}
+func (NopLogger) Error(msg string, fields ...Field)        {}
 func (n NopLogger) WithContext(ctx context.Context) Logger { return n }
 func (n NopLogger) WithFields(fields ...Field) Logger      { return n }
 
@@ -236,18 +236,18 @@ func (a *StdLogAdapter) log(level Level, msg string, fields []Field) {
 	if level < a.level {
 		return
 	}
-	
+
 	fieldStr := ""
 	for _, f := range fields {
 		fieldStr += fmt.Sprintf(" %s=%v", f.Key, f.Value)
 	}
-	
+
 	a.logger.Printf("[%s] %s%s", level.String(), msg, fieldStr)
 }
 
-func (a *StdLogAdapter) Debug(msg string, fields ...Field) { a.log(LevelDebug, msg, fields) }
-func (a *StdLogAdapter) Info(msg string, fields ...Field)  { a.log(LevelInfo, msg, fields) }
-func (a *StdLogAdapter) Warn(msg string, fields ...Field)  { a.log(LevelWarn, msg, fields) }
-func (a *StdLogAdapter) Error(msg string, fields ...Field) { a.log(LevelError, msg, fields) }
+func (a *StdLogAdapter) Debug(msg string, fields ...Field)      { a.log(LevelDebug, msg, fields) }
+func (a *StdLogAdapter) Info(msg string, fields ...Field)       { a.log(LevelInfo, msg, fields) }
+func (a *StdLogAdapter) Warn(msg string, fields ...Field)       { a.log(LevelWarn, msg, fields) }
+func (a *StdLogAdapter) Error(msg string, fields ...Field)      { a.log(LevelError, msg, fields) }
 func (a *StdLogAdapter) WithContext(ctx context.Context) Logger { return a }
 func (a *StdLogAdapter) WithFields(fields ...Field) Logger      { return a }

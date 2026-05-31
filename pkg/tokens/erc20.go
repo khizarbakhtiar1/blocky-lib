@@ -16,7 +16,7 @@ import (
 type ERC20 struct {
 	address types.Address
 	chain   chains.Chain
-	
+
 	// Cached token info
 	name     string
 	symbol   string
@@ -27,13 +27,13 @@ type ERC20 struct {
 // Common ERC20 function signatures (first 4 bytes of keccak256 hash)
 var (
 	// Read functions
-	fnName         = mustDecodeHex("06fdde03") // name()
-	fnSymbol       = mustDecodeHex("95d89b41") // symbol()
-	fnDecimals     = mustDecodeHex("313ce567") // decimals()
-	fnTotalSupply  = mustDecodeHex("18160ddd") // totalSupply()
-	fnBalanceOf    = mustDecodeHex("70a08231") // balanceOf(address)
-	fnAllowance    = mustDecodeHex("dd62ed3e") // allowance(address,address)
-	
+	fnName        = mustDecodeHex("06fdde03") // name()
+	fnSymbol      = mustDecodeHex("95d89b41") // symbol()
+	fnDecimals    = mustDecodeHex("313ce567") // decimals()
+	fnTotalSupply = mustDecodeHex("18160ddd") // totalSupply()
+	fnBalanceOf   = mustDecodeHex("70a08231") // balanceOf(address)
+	fnAllowance   = mustDecodeHex("dd62ed3e") // allowance(address,address)
+
 	// Write functions
 	fnTransfer     = mustDecodeHex("a9059cbb") // transfer(address,uint256)
 	fnApprove      = mustDecodeHex("095ea7b3") // approve(address,uint256)
@@ -58,12 +58,12 @@ func (t *ERC20) Name(ctx context.Context) (string, error) {
 	if t.cached && t.name != "" {
 		return t.name, nil
 	}
-	
+
 	result, err := t.call(ctx, fnName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get token name: %w", err)
 	}
-	
+
 	t.name = decodeString(result)
 	return t.name, nil
 }
@@ -73,12 +73,12 @@ func (t *ERC20) Symbol(ctx context.Context) (string, error) {
 	if t.cached && t.symbol != "" {
 		return t.symbol, nil
 	}
-	
+
 	result, err := t.call(ctx, fnSymbol)
 	if err != nil {
 		return "", fmt.Errorf("failed to get token symbol: %w", err)
 	}
-	
+
 	t.symbol = decodeString(result)
 	return t.symbol, nil
 }
@@ -88,12 +88,12 @@ func (t *ERC20) Decimals(ctx context.Context) (uint8, error) {
 	if t.cached {
 		return t.decimals, nil
 	}
-	
+
 	result, err := t.call(ctx, fnDecimals)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get token decimals: %w", err)
 	}
-	
+
 	if len(result) >= 32 {
 		t.decimals = result[31]
 	}
@@ -107,19 +107,19 @@ func (t *ERC20) TotalSupply(ctx context.Context) (*big.Int, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get total supply: %w", err)
 	}
-	
+
 	return new(big.Int).SetBytes(result), nil
 }
 
 // BalanceOf returns the token balance for an address
 func (t *ERC20) BalanceOf(ctx context.Context, owner types.Address) (*big.Int, error) {
 	data := append(fnBalanceOf, padAddress(owner)...)
-	
+
 	result, err := t.call(ctx, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get balance: %w", err)
 	}
-	
+
 	return new(big.Int).SetBytes(result), nil
 }
 
@@ -127,12 +127,12 @@ func (t *ERC20) BalanceOf(ctx context.Context, owner types.Address) (*big.Int, e
 func (t *ERC20) Allowance(ctx context.Context, owner, spender types.Address) (*big.Int, error) {
 	data := append(fnAllowance, padAddress(owner)...)
 	data = append(data, padAddress(spender)...)
-	
+
 	result, err := t.call(ctx, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get allowance: %w", err)
 	}
-	
+
 	return new(big.Int).SetBytes(result), nil
 }
 
@@ -219,7 +219,7 @@ func decodeString(data []byte) string {
 		// Try to decode as fixed bytes
 		return strings.TrimRight(string(data), "\x00")
 	}
-	
+
 	// Dynamic string: offset (32 bytes) + length (32 bytes) + data
 	if len(data) >= 64 {
 		length := new(big.Int).SetBytes(data[32:64]).Uint64()
@@ -235,43 +235,43 @@ func FormatUnits(value *big.Int, decimals uint8) string {
 	if value == nil {
 		return "0"
 	}
-	
+
 	divisor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
-	
+
 	quotient := new(big.Int).Div(value, divisor)
 	remainder := new(big.Int).Mod(value, divisor)
-	
+
 	if remainder.Sign() == 0 {
 		return quotient.String()
 	}
-	
+
 	// Format with decimal places
 	remainderStr := remainder.String()
 	for len(remainderStr) < int(decimals) {
 		remainderStr = "0" + remainderStr
 	}
 	remainderStr = strings.TrimRight(remainderStr, "0")
-	
+
 	return fmt.Sprintf("%s.%s", quotient.String(), remainderStr)
 }
 
 // ParseUnits parses a string value to the smallest unit
 func ParseUnits(value string, decimals uint8) (*big.Int, error) {
 	parts := strings.Split(value, ".")
-	
+
 	if len(parts) > 2 {
 		return nil, fmt.Errorf("invalid number format")
 	}
-	
+
 	// Integer part
 	intPart, ok := new(big.Int).SetString(parts[0], 10)
 	if !ok {
 		return nil, fmt.Errorf("invalid integer part")
 	}
-	
+
 	multiplier := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
 	result := new(big.Int).Mul(intPart, multiplier)
-	
+
 	// Decimal part
 	if len(parts) == 2 {
 		decPart := parts[1]
@@ -282,14 +282,14 @@ func ParseUnits(value string, decimals uint8) (*big.Int, error) {
 		for len(decPart) < int(decimals) {
 			decPart += "0"
 		}
-		
+
 		decValue, ok := new(big.Int).SetString(decPart, 10)
 		if !ok {
 			return nil, fmt.Errorf("invalid decimal part")
 		}
 		result.Add(result, decValue)
 	}
-	
+
 	return result, nil
 }
 
@@ -302,13 +302,13 @@ func init() {
 		1:   types.MustAddressFromHex("0xdAC17F958D2ee523a2206206994597C13D831ec7"), // Ethereum
 		137: types.MustAddressFromHex("0xc2132D05D31c914a87C6611C10748AEb04B58e8F"), // Polygon
 	}
-	
+
 	// USDC addresses
 	CommonTokens["USDC"] = map[int64]types.Address{
 		1:   types.MustAddressFromHex("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"), // Ethereum
 		137: types.MustAddressFromHex("0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"), // Polygon
 	}
-	
+
 	// WETH addresses
 	CommonTokens["WETH"] = map[int64]types.Address{
 		1:     types.MustAddressFromHex("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"), // Ethereum
@@ -342,15 +342,15 @@ func ParseTransferEvent(log *types.Log) (*TokenTransferEvent, error) {
 	if len(log.Topics) != 3 {
 		return nil, fmt.Errorf("invalid number of topics for Transfer event")
 	}
-	
+
 	if log.Topics[0] != TransferEventTopic {
 		return nil, fmt.Errorf("not a Transfer event")
 	}
-	
+
 	var from, to types.Address
 	copy(from[:], log.Topics[1][12:])
 	copy(to[:], log.Topics[2][12:])
-	
+
 	return &TokenTransferEvent{
 		From:   from,
 		To:     to,

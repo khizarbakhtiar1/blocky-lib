@@ -46,12 +46,12 @@ func HashFromHex(s string) (Hash, error) {
 	if len(s) != 64 {
 		return Hash{}, fmt.Errorf("invalid hash hex length: expected 64, got %d", len(s))
 	}
-	
+
 	decoded, err := hex.DecodeString(s)
 	if err != nil {
 		return Hash{}, fmt.Errorf("invalid hex string: %w", err)
 	}
-	
+
 	return NewHash(decoded)
 }
 
@@ -74,4 +74,3 @@ var (
 	// HashZero is the zero hash
 	HashZero = ZeroHash()
 )
-

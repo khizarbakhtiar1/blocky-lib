@@ -26,16 +26,16 @@ func (a Address) StringLower() string {
 // toChecksumAddress returns the EIP-55 checksummed address
 func toChecksumAddress(addr Address) string {
 	hexAddr := hex.EncodeToString(addr[:])
-	
+
 	// Keccak256 hash of the lowercase hex address
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write([]byte(hexAddr))
 	hash := hasher.Sum(nil)
-	
+
 	result := make([]byte, 42)
 	result[0] = '0'
 	result[1] = 'x'
-	
+
 	for i, c := range hexAddr {
 		if c >= '0' && c <= '9' {
 			result[i+2] = byte(c)
@@ -47,7 +47,7 @@ func toChecksumAddress(addr Address) string {
 			} else {
 				hashNibble = hashNibble & 0x0f
 			}
-			
+
 			if hashNibble >= 8 {
 				result[i+2] = byte(c - 32) // uppercase
 			} else {
@@ -55,7 +55,7 @@ func toChecksumAddress(addr Address) string {
 			}
 		}
 	}
-	
+
 	return string(result)
 }
 
@@ -91,12 +91,12 @@ func AddressFromHex(s string) (Address, error) {
 	if len(s) != 40 {
 		return Address{}, fmt.Errorf("invalid address hex length: expected 40, got %d", len(s))
 	}
-	
+
 	decoded, err := hex.DecodeString(s)
 	if err != nil {
 		return Address{}, fmt.Errorf("invalid hex string: %w", err)
 	}
-	
+
 	return NewAddress(decoded)
 }
 
@@ -134,12 +134,12 @@ func ValidateChecksum(hexAddr string) bool {
 	if !strings.HasPrefix(hexAddr, "0x") {
 		return false
 	}
-	
+
 	addr, err := AddressFromHex(hexAddr)
 	if err != nil {
 		return false
 	}
-	
+
 	return toChecksumAddress(addr) == hexAddr
 }
 
@@ -161,4 +161,3 @@ func (a Address) Compare(b Address) int {
 func (a Address) Equal(b Address) bool {
 	return a == b
 }
-

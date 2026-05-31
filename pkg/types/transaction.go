@@ -20,7 +20,7 @@ const (
 type Transaction struct {
 	// Type of transaction (legacy, EIP-2930, EIP-1559)
 	Type TransactionType
-	
+
 	// Common fields
 	ChainID  *big.Int
 	Nonce    uint64
@@ -28,22 +28,22 @@ type Transaction struct {
 	Value    *big.Int
 	Data     []byte
 	GasLimit uint64
-	
+
 	// Legacy and EIP-2930 fields
 	GasPrice *big.Int
-	
+
 	// EIP-1559 fields
 	MaxFeePerGas         *big.Int
 	MaxPriorityFeePerGas *big.Int
-	
+
 	// EIP-2930 access list
 	AccessList AccessList
-	
+
 	// Signature fields
 	V *big.Int
 	R *big.Int
 	S *big.Int
-	
+
 	// Computed fields (set after signing/sending)
 	Hash Hash
 	From Address
@@ -93,14 +93,14 @@ func (tx *Transaction) Cost() *big.Int {
 	if tx.Value != nil {
 		total.Set(tx.Value)
 	}
-	
+
 	gasCost := new(big.Int).SetUint64(tx.GasLimit)
 	if tx.Type == DynamicFeeTxType && tx.MaxFeePerGas != nil {
 		gasCost.Mul(gasCost, tx.MaxFeePerGas)
 	} else if tx.GasPrice != nil {
 		gasCost.Mul(gasCost, tx.GasPrice)
 	}
-	
+
 	total.Add(total, gasCost)
 	return total
 }
@@ -110,4 +110,3 @@ type SignedTransaction struct {
 	*Transaction
 	RawTransaction []byte // RLP-encoded transaction
 }
-

@@ -1,7 +1,7 @@
 package crypto
 
 import (
-	"crypto/elliptic"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,8 +10,19 @@ import (
 
 func TestS256(t *testing.T) {
 	curve := S256()
-	assert.NotNil(t, curve)
-	assert.IsType(t, elliptic.P256(), curve)
+	require.NotNil(t, curve)
+
+	params := curve.Params()
+	assert.Equal(t, 256, params.BitSize)
+	assert.Equal(t, "secp256k1", params.Name)
+	assert.Equal(t, big.NewInt(7), params.B)
+
+	// The generator point must lie on the curve.
+	assert.True(t, curve.IsOnCurve(params.Gx, params.Gy))
+
+	// N is the documented secp256k1 group order.
+	expectedN, _ := new(big.Int).SetString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16)
+	assert.Equal(t, 0, expectedN.Cmp(params.N))
 }
 
 func TestFromECDSA(t *testing.T) {

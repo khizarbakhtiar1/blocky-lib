@@ -157,4 +157,3 @@ func TestFormatGweiNil(t *testing.T) {
 	formatted := FormatGwei(nil)
 	assert.Equal(t, "0", formatted)
 }
-

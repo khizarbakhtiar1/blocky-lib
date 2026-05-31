@@ -50,11 +50,11 @@ func NewWaiter(chain chains.Chain, opts ...WaiterOption) *Waiter {
 		maxWait:       5 * time.Minute,
 		confirmations: 1,
 	}
-	
+
 	for _, opt := range opts {
 		opt(w)
 	}
-	
+
 	return w
 }
 
@@ -70,10 +70,10 @@ func (w *Waiter) WaitForReceipt(ctx context.Context, txHash types.Hash) (*WaitRe
 	// Create a timeout context
 	ctx, cancel := context.WithTimeout(ctx, w.maxWait)
 	defer cancel()
-	
+
 	ticker := time.NewTicker(w.pollInterval)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -84,20 +84,20 @@ func (w *Waiter) WaitForReceipt(ctx context.Context, txHash types.Hash) (*WaitRe
 				// Transaction not mined yet, continue polling
 				continue
 			}
-			
+
 			// Check confirmations if required
 			if w.confirmations > 1 {
 				currentBlock, err := w.chain.GetBlockNumber(ctx)
 				if err != nil {
 					continue
 				}
-				
+
 				confirmations := int(currentBlock.Int64() - receipt.BlockNumber.Int64() + 1)
 				if confirmations < w.confirmations {
 					continue
 				}
 			}
-			
+
 			return &WaitResult{
 				Receipt:       receipt,
 				Confirmations: w.confirmations,
@@ -114,18 +114,18 @@ func (w *Waiter) WaitForConfirmations(ctx context.Context, txHash types.Hash, co
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if confirmations <= 1 {
 		return result, nil
 	}
-	
+
 	// Wait for additional confirmations
 	ctx, cancel := context.WithTimeout(ctx, w.maxWait)
 	defer cancel()
-	
+
 	ticker := time.NewTicker(w.pollInterval)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -135,7 +135,7 @@ func (w *Waiter) WaitForConfirmations(ctx context.Context, txHash types.Hash, co
 			if err != nil {
 				continue
 			}
-			
+
 			currentConfirmations := int(currentBlock.Int64() - result.Receipt.BlockNumber.Int64() + 1)
 			if currentConfirmations >= confirmations {
 				result.Confirmations = currentConfirmations
@@ -149,7 +149,7 @@ func (w *Waiter) WaitForConfirmations(ctx context.Context, txHash types.Hash, co
 func WaitForBlock(ctx context.Context, chain chains.Chain, targetBlock int64, pollInterval time.Duration) error {
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -159,7 +159,7 @@ func WaitForBlock(ctx context.Context, chain chains.Chain, targetBlock int64, po
 			if err != nil {
 				continue
 			}
-			
+
 			if currentBlock.Int64() >= targetBlock {
 				return nil
 			}
@@ -200,40 +200,40 @@ func GetTransactionStatus(ctx context.Context, chain chains.Chain, txHash types.
 	if err != nil {
 		return StatusUnknown, 0, nil // Transaction not found
 	}
-	
+
 	// Transaction exists, check for receipt
 	receipt, err := chain.GetTransactionReceipt(ctx, txHash)
 	if err != nil {
 		return StatusPending, 0, nil // Transaction pending
 	}
-	
+
 	// Check if transaction failed
 	if receipt.Status == 0 {
 		return StatusFailed, 0, nil
 	}
-	
+
 	// Get current block for confirmation count
 	currentBlock, err := chain.GetBlockNumber(ctx)
 	if err != nil {
 		return StatusMined, 1, nil
 	}
-	
+
 	confirmations := int(currentBlock.Int64() - receipt.BlockNumber.Int64() + 1)
-	
+
 	if confirmations >= requiredConfirmations {
 		return StatusConfirmed, confirmations, nil
 	}
-	
+
 	// Silence the unused variable warning
 	_ = tx
-	
+
 	return StatusMined, confirmations, nil
 }
 
 // SpeedUpTransaction creates a replacement transaction with higher gas price
 func SpeedUpTransaction(original *types.Transaction, gasPriceIncrease int) *types.Transaction {
 	replacement := *original // Copy
-	
+
 	if replacement.Type == types.DynamicFeeTxType {
 		// EIP-1559 transaction
 		if replacement.MaxFeePerGas != nil {
@@ -257,7 +257,7 @@ func SpeedUpTransaction(original *types.Transaction, gasPriceIncrease int) *type
 			replacement.GasPrice = newGasPrice
 		}
 	}
-	
+
 	return &replacement
 }
 

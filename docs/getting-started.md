@@ -100,7 +100,46 @@ if err != nil {
 estimatedGas, err := bcClient.EstimateGas(ctx, "ethereum", tx)
 ```
 
-### 4. Work with Multiple Chains
+### 4. Sign and Send Transactions
+
+```go
+import (
+    "github.com/khizar/bc-lib/pkg/wallet"
+    "math/big"
+)
+
+// Create a fresh wallet, or import an existing key.
+w, err := wallet.NewWallet()
+// w, err := wallet.FromPrivateKeyHex("0x...")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Address:", w.Address())
+
+// Build an EIP-1559 transfer.
+tx, _ := transaction.Transfer(toAddress, value, chains.EthereumMainnet).
+    MaxFeePerGas(big.NewInt(30000000000)).
+    MaxPriorityFeePerGas(big.NewInt(2000000000)).
+    Build()
+
+// Option A: sign locally, broadcast the raw bytes yourself.
+signed, err := w.SignTransaction(tx)
+if err != nil {
+    log.Fatal(err)
+}
+hash, err := bcClient.SendRawTransaction(ctx, "ethereum", signed.RawTransaction)
+
+// Option B: let the client populate nonce/gas, sign, and send in one call.
+hash, err = bcClient.SignAndSendTransaction(ctx, "ethereum", w, tx)
+```
+
+Legacy (EIP-155), EIP-2930 (access list), and EIP-1559 transactions are all
+supported. Signing happens locally — your private key never leaves the process.
+
+> Note: the bundled secp256k1 implementation is correct and Ethereum-valid but
+> not constant-time. Use it in trusted environments.
+
+### 5. Work with Multiple Chains
 
 ```go
 config := client.Config{
@@ -241,7 +280,8 @@ See the [examples](../examples/) directory for complete examples:
 
 - [Balance Query](../examples/balance/) - Query address balance
 - [Multi-Chain](../examples/transfer/) - Work with multiple chains
-- More examples coming soon!
+- [ERC-20](../examples/erc20/) - Read token metadata, balances, and build calldata
+- [Signing](../examples/sign/) - Sign a transaction locally and recover the sender
 
 ## Next Steps
 

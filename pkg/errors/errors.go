@@ -12,17 +12,17 @@ var (
 	ErrConnectionFailed = errors.New("failed to connect to blockchain")
 	ErrAllRPCsFailed    = errors.New("all RPC endpoints failed")
 	ErrTimeout          = errors.New("request timed out")
-	
+
 	// Transaction errors
-	ErrInsufficientFunds    = errors.New("insufficient funds for transaction")
-	ErrNonceTooLow          = errors.New("nonce too low")
-	ErrNonceTooHigh         = errors.New("nonce too high")
-	ErrGasTooLow            = errors.New("gas limit too low")
-	ErrGasPriceTooLow       = errors.New("gas price too low")
-	ErrTransactionReverted  = errors.New("transaction reverted")
+	ErrInsufficientFunds      = errors.New("insufficient funds for transaction")
+	ErrNonceTooLow            = errors.New("nonce too low")
+	ErrNonceTooHigh           = errors.New("nonce too high")
+	ErrGasTooLow              = errors.New("gas limit too low")
+	ErrGasPriceTooLow         = errors.New("gas price too low")
+	ErrTransactionReverted    = errors.New("transaction reverted")
 	ErrTransactionUnderpriced = errors.New("transaction underpriced")
 	ErrReplacementUnderpriced = errors.New("replacement transaction underpriced")
-	
+
 	// Validation errors
 	ErrInvalidAddress     = errors.New("invalid address")
 	ErrInvalidHash        = errors.New("invalid hash")
@@ -30,13 +30,13 @@ var (
 	ErrInvalidPrivateKey  = errors.New("invalid private key")
 	ErrInvalidTransaction = errors.New("invalid transaction")
 	ErrInvalidChainID     = errors.New("invalid chain ID")
-	
+
 	// State errors
 	ErrBlockNotFound       = errors.New("block not found")
 	ErrTransactionNotFound = errors.New("transaction not found")
 	ErrReceiptNotFound     = errors.New("transaction receipt not found")
 	ErrAccountNotFound     = errors.New("account not found")
-	
+
 	// Contract errors
 	ErrContractExecution = errors.New("contract execution failed")
 	ErrContractNotFound  = errors.New("contract not found")

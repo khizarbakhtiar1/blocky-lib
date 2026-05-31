@@ -9,9 +9,16 @@ import (
 // RLP encoding implementation for Ethereum transactions
 // Based on the Recursive Length Prefix encoding scheme
 
+// Raw represents an already RLP-encoded node. When passed to Encode it is
+// emitted verbatim, which is useful for embedding pre-encoded structures such
+// as EIP-2930 access lists inside a larger list.
+type Raw []byte
+
 // Encode encodes a value using RLP
 func Encode(val interface{}) ([]byte, error) {
 	switch v := val.(type) {
+	case Raw:
+		return []byte(v), nil
 	case []byte:
 		return encodeBytes(v), nil
 	case string:
@@ -67,7 +74,7 @@ func bigIntToBytes(i *big.Int) []byte {
 // encodeList encodes a list of items
 func encodeList(items []interface{}) ([]byte, error) {
 	var buf bytes.Buffer
-	
+
 	for _, item := range items {
 		encoded, err := Encode(item)
 		if err != nil {
@@ -75,7 +82,7 @@ func encodeList(items []interface{}) ([]byte, error) {
 		}
 		buf.Write(encoded)
 	}
-	
+
 	content := buf.Bytes()
 	return append(encodeLength(len(content), 0xc0), content...), nil
 }
@@ -85,7 +92,7 @@ func encodeLength(length int, offset byte) []byte {
 	if length < 56 {
 		return []byte{offset + byte(length)}
 	}
-	
+
 	// For lengths >= 56, we need to encode the length of the length
 	lengthBytes := bigIntToBytes(big.NewInt(int64(length)))
 	return append([]byte{offset + 55 + byte(len(lengthBytes))}, lengthBytes...)
@@ -96,14 +103,14 @@ func Decode(data []byte) (interface{}, int, error) {
 	if len(data) == 0 {
 		return nil, 0, fmt.Errorf("empty RLP data")
 	}
-	
+
 	prefix := data[0]
-	
+
 	switch {
 	case prefix < 0x80:
 		// Single byte
 		return []byte{prefix}, 1, nil
-		
+
 	case prefix < 0xb8:
 		// Short string (0-55 bytes)
 		length := int(prefix - 0x80)
@@ -111,7 +118,7 @@ func Decode(data []byte) (interface{}, int, error) {
 			return nil, 0, fmt.Errorf("insufficient data for string")
 		}
 		return data[1 : 1+length], 1 + length, nil
-		
+
 	case prefix < 0xc0:
 		// Long string (>55 bytes)
 		lengthOfLength := int(prefix - 0xb7)
@@ -123,7 +130,7 @@ func Decode(data []byte) (interface{}, int, error) {
 			return nil, 0, fmt.Errorf("insufficient data for long string")
 		}
 		return data[1+lengthOfLength : 1+lengthOfLength+length], 1 + lengthOfLength + length, nil
-		
+
 	case prefix < 0xf8:
 		// Short list (0-55 bytes total)
 		length := int(prefix - 0xc0)
@@ -131,7 +138,7 @@ func Decode(data []byte) (interface{}, int, error) {
 			return nil, 0, fmt.Errorf("insufficient data for list")
 		}
 		return decodeList(data[1 : 1+length])
-		
+
 	default:
 		// Long list (>55 bytes total)
 		lengthOfLength := int(prefix - 0xf7)
@@ -150,7 +157,7 @@ func Decode(data []byte) (interface{}, int, error) {
 func decodeList(content []byte) ([]interface{}, int, error) {
 	var items []interface{}
 	offset := 0
-	
+
 	for offset < len(content) {
 		item, consumed, err := Decode(content[offset:])
 		if err != nil {
@@ -159,7 +166,7 @@ func decodeList(content []byte) ([]interface{}, int, error) {
 		items = append(items, item)
 		offset += consumed
 	}
-	
+
 	return items, len(content), nil
 }
 
@@ -170,49 +177,4 @@ func bytesToInt(b []byte) int {
 		result = result<<8 + int(v)
 	}
 	return result
-}
-
-// EncodeTransaction encodes a transaction for signing or broadcasting
-type TransactionEncoder struct{}
-
-// EncodeLegacyTransaction encodes a legacy transaction
-func EncodeLegacyTransaction(nonce uint64, gasPrice, gasLimit *big.Int, to []byte, value *big.Int, data []byte, chainID *big.Int) ([]byte, error) {
-	items := []interface{}{
-		nonce,
-		gasPrice,
-		gasLimit,
-		to,
-		value,
-		data,
-	}
-	
-	// For signing, we need to include chainID, 0, 0 (EIP-155)
-	if chainID != nil && chainID.Sign() > 0 {
-		items = append(items, chainID, uint64(0), uint64(0))
-	}
-	
-	return EncodeList(items...)
-}
-
-// EncodeEIP1559Transaction encodes an EIP-1559 transaction
-func EncodeEIP1559Transaction(chainID *big.Int, nonce uint64, maxPriorityFee, maxFee, gasLimit *big.Int, to []byte, value *big.Int, data []byte, accessList []byte) ([]byte, error) {
-	items := []interface{}{
-		chainID,
-		nonce,
-		maxPriorityFee,
-		maxFee,
-		gasLimit,
-		to,
-		value,
-		data,
-		accessList,
-	}
-	
-	encoded, err := EncodeList(items...)
-	if err != nil {
-		return nil, err
-	}
-	
-	// Prepend transaction type (0x02 for EIP-1559)
-	return append([]byte{0x02}, encoded...), nil
 }

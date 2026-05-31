@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/khizar/bc-lib/internal/encoding"
 	"github.com/khizar/bc-lib/internal/rpc"
 	"github.com/khizar/bc-lib/pkg/chains"
 	"github.com/khizar/bc-lib/pkg/types"
@@ -26,14 +27,14 @@ func NewClient(config chains.ChainConfig) (*Client, error) {
 	if len(config.RPCURLs) == 0 {
 		return nil, fmt.Errorf("at least one RPC URL is required")
 	}
-	
+
 	timeout := time.Duration(config.Timeout) * time.Second
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
-	
+
 	provider := rpc.NewProvider(config.RPCURLs, timeout)
-	
+
 	return &Client{
 		provider: provider,
 		chainID:  config.ChainID,
@@ -48,18 +49,18 @@ func (c *Client) Connect(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get chain ID: %w", err)
 	}
-	
+
 	if c.chainID != nil && chainID.Cmp(c.chainID) != 0 {
 		return fmt.Errorf("chain ID mismatch: expected %s, got %s", c.chainID, chainID)
 	}
-	
+
 	c.chainID = chainID
-	
+
 	// Set name if not provided
 	if c.name == "" {
 		c.name = chains.ChainName(c.chainID)
 	}
-	
+
 	return nil
 }
 
@@ -94,22 +95,22 @@ func (c *Client) GetBalanceAt(ctx context.Context, address types.Address, blockN
 	if blockNumber != nil {
 		blockParam = fmt.Sprintf("0x%x", blockNumber)
 	}
-	
+
 	result, err := c.provider.Call(ctx, "eth_getBalance", address.String(), blockParam)
 	if err != nil {
 		return nil, fmt.Errorf("eth_getBalance failed: %w", err)
 	}
-	
+
 	var hexBalance string
 	if err := json.Unmarshal(result, &hexBalance); err != nil {
 		return nil, fmt.Errorf("failed to parse balance: %w", err)
 	}
-	
+
 	balance := new(big.Int)
 	if _, ok := balance.SetString(hexBalance[2:], 16); !ok {
 		return nil, fmt.Errorf("invalid balance hex: %s", hexBalance)
 	}
-	
+
 	return balance, nil
 }
 
@@ -119,17 +120,17 @@ func (c *Client) GetBlockNumber(ctx context.Context) (*big.Int, error) {
 	if err != nil {
 		return nil, fmt.Errorf("eth_blockNumber failed: %w", err)
 	}
-	
+
 	var hexBlock string
 	if err := json.Unmarshal(result, &hexBlock); err != nil {
 		return nil, fmt.Errorf("failed to parse block number: %w", err)
 	}
-	
+
 	blockNum := new(big.Int)
 	if _, ok := blockNum.SetString(hexBlock[2:], 16); !ok {
 		return nil, fmt.Errorf("invalid block number hex: %s", hexBlock)
 	}
-	
+
 	return blockNum, nil
 }
 
@@ -144,45 +145,60 @@ func (c *Client) GetTransactionCountAt(ctx context.Context, address types.Addres
 	if blockNumber != nil {
 		blockParam = fmt.Sprintf("0x%x", blockNumber)
 	}
-	
+
 	result, err := c.provider.Call(ctx, "eth_getTransactionCount", address.String(), blockParam)
 	if err != nil {
 		return 0, fmt.Errorf("eth_getTransactionCount failed: %w", err)
 	}
-	
+
 	var hexNonce string
 	if err := json.Unmarshal(result, &hexNonce); err != nil {
 		return 0, fmt.Errorf("failed to parse nonce: %w", err)
 	}
-	
+
 	nonce := new(big.Int)
 	if _, ok := nonce.SetString(hexNonce[2:], 16); !ok {
 		return 0, fmt.Errorf("invalid nonce hex: %s", hexNonce)
 	}
-	
+
 	return nonce.Uint64(), nil
 }
 
 // SendRawTransaction sends a signed transaction
 func (c *Client) SendRawTransaction(ctx context.Context, signedTx []byte) (types.Hash, error) {
 	hexTx := fmt.Sprintf("0x%x", signedTx)
-	
+
 	result, err := c.provider.Call(ctx, "eth_sendRawTransaction", hexTx)
 	if err != nil {
 		return types.Hash{}, fmt.Errorf("eth_sendRawTransaction failed: %w", err)
 	}
-	
+
 	var txHash string
 	if err := json.Unmarshal(result, &txHash); err != nil {
 		return types.Hash{}, fmt.Errorf("failed to parse tx hash: %w", err)
 	}
-	
+
 	return types.HashFromHex(txHash)
 }
 
-// SendTransaction signs and sends a transaction (requires wallet integration)
+// SendTransaction broadcasts an already-signed transaction. The transaction
+// must have its signature fields (V, R, S) populated, e.g. via
+// wallet.SignTransaction. To sign and send in one step, use the high-level
+// client helpers. Unsigned transactions are rejected.
 func (c *Client) SendTransaction(ctx context.Context, tx *types.Transaction) (types.Hash, error) {
-	return types.Hash{}, fmt.Errorf("SendTransaction requires wallet integration - use SendRawTransaction instead")
+	if tx == nil {
+		return types.Hash{}, fmt.Errorf("nil transaction")
+	}
+	if tx.V == nil || tx.R == nil || tx.S == nil {
+		return types.Hash{}, fmt.Errorf("transaction is not signed: sign it with a wallet before sending")
+	}
+
+	raw, err := encoding.EncodeSigned(tx)
+	if err != nil {
+		return types.Hash{}, fmt.Errorf("failed to encode signed transaction: %w", err)
+	}
+
+	return c.SendRawTransaction(ctx, raw)
 }
 
 // EstimateGas estimates the gas needed for a transaction
@@ -191,26 +207,26 @@ func (c *Client) EstimateGas(ctx context.Context, tx *types.Transaction) (uint64
 		"to":   tx.To.String(),
 		"data": fmt.Sprintf("0x%x", tx.Data),
 	}
-	
+
 	if tx.Value != nil && tx.Value.Sign() > 0 {
 		callMsg["value"] = fmt.Sprintf("0x%x", tx.Value)
 	}
-	
+
 	result, err := c.provider.Call(ctx, "eth_estimateGas", callMsg)
 	if err != nil {
 		return 0, fmt.Errorf("eth_estimateGas failed: %w", err)
 	}
-	
+
 	var hexGas string
 	if err := json.Unmarshal(result, &hexGas); err != nil {
 		return 0, fmt.Errorf("failed to parse gas: %w", err)
 	}
-	
+
 	gas := new(big.Int)
 	if _, ok := gas.SetString(hexGas[2:], 16); !ok {
 		return 0, fmt.Errorf("invalid gas hex: %s", hexGas)
 	}
-	
+
 	return gas.Uint64(), nil
 }
 
@@ -220,17 +236,17 @@ func (c *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 	if err != nil {
 		return nil, fmt.Errorf("eth_gasPrice failed: %w", err)
 	}
-	
+
 	var hexPrice string
 	if err := json.Unmarshal(result, &hexPrice); err != nil {
 		return nil, fmt.Errorf("failed to parse gas price: %w", err)
 	}
-	
+
 	price := new(big.Int)
 	if _, ok := price.SetString(hexPrice[2:], 16); !ok {
 		return nil, fmt.Errorf("invalid gas price hex: %s", hexPrice)
 	}
-	
+
 	return price, nil
 }
 
@@ -240,17 +256,17 @@ func (c *Client) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
 	if err != nil {
 		return nil, fmt.Errorf("eth_maxPriorityFeePerGas failed: %w", err)
 	}
-	
+
 	var hexTip string
 	if err := json.Unmarshal(result, &hexTip); err != nil {
 		return nil, fmt.Errorf("failed to parse tip: %w", err)
 	}
-	
+
 	tip := new(big.Int)
 	if _, ok := tip.SetString(hexTip[2:], 16); !ok {
 		return nil, fmt.Errorf("invalid tip hex: %s", hexTip)
 	}
-	
+
 	return tip, nil
 }
 
@@ -260,17 +276,17 @@ func (c *Client) NetworkID(ctx context.Context) (*big.Int, error) {
 	if err != nil {
 		return nil, fmt.Errorf("eth_chainId failed: %w", err)
 	}
-	
+
 	var hexID string
 	if err := json.Unmarshal(result, &hexID); err != nil {
 		return nil, fmt.Errorf("failed to parse chain ID: %w", err)
 	}
-	
+
 	id := new(big.Int)
 	if _, ok := id.SetString(hexID[2:], 16); !ok {
 		return nil, fmt.Errorf("invalid chain ID hex: %s", hexID)
 	}
-	
+
 	return id, nil
 }
 
@@ -282,34 +298,50 @@ func (c *Client) GetTransaction(ctx context.Context, hash types.Hash) (*types.Tr
 	if err != nil {
 		return nil, fmt.Errorf("eth_getTransactionByHash failed: %w", err)
 	}
-	
-	var txData struct {
-		Hash             string `json:"hash"`
-		Nonce            string `json:"nonce"`
-		From             string `json:"from"`
-		To               string `json:"to"`
-		Value            string `json:"value"`
-		Gas              string `json:"gas"`
-		GasPrice         string `json:"gasPrice"`
-		MaxFeePerGas     string `json:"maxFeePerGas"`
-		MaxPriorityFee   string `json:"maxPriorityFeePerGas"`
-		Input            string `json:"input"`
-		Type             string `json:"type"`
-		ChainId          string `json:"chainId"`
-		V                string `json:"v"`
-		R                string `json:"r"`
-		S                string `json:"s"`
-	}
-	
-	if err := json.Unmarshal(result, &txData); err != nil {
-		return nil, fmt.Errorf("failed to parse transaction: %w", err)
-	}
-	
-	// Check if transaction was found
-	if txData.Hash == "" {
+
+	// A null result means the transaction was not found.
+	if len(result) == 0 || string(result) == "null" {
 		return nil, fmt.Errorf("transaction not found")
 	}
-	
+
+	tx, err := parseTransaction(result)
+	if err != nil {
+		return nil, err
+	}
+	if tx == nil {
+		return nil, fmt.Errorf("transaction not found")
+	}
+	return tx, nil
+}
+
+// parseTransaction decodes a JSON transaction object returned by the node.
+func parseTransaction(data json.RawMessage) (*types.Transaction, error) {
+	var txData struct {
+		Hash           string `json:"hash"`
+		Nonce          string `json:"nonce"`
+		From           string `json:"from"`
+		To             string `json:"to"`
+		Value          string `json:"value"`
+		Gas            string `json:"gas"`
+		GasPrice       string `json:"gasPrice"`
+		MaxFeePerGas   string `json:"maxFeePerGas"`
+		MaxPriorityFee string `json:"maxPriorityFeePerGas"`
+		Input          string `json:"input"`
+		Type           string `json:"type"`
+		ChainId        string `json:"chainId"`
+		V              string `json:"v"`
+		R              string `json:"r"`
+		S              string `json:"s"`
+	}
+
+	if err := json.Unmarshal(data, &txData); err != nil {
+		return nil, fmt.Errorf("failed to parse transaction: %w", err)
+	}
+
+	if txData.Hash == "" {
+		return nil, nil
+	}
+
 	tx := &types.Transaction{}
 	tx.Hash, _ = types.HashFromHex(txData.Hash)
 	tx.Nonce = hexToUint64(txData.Nonce)
@@ -328,11 +360,8 @@ func (c *Client) GetTransaction(ctx context.Context, hash types.Hash) (*types.Tr
 	tx.V = hexToBigInt(txData.V)
 	tx.R = hexToBigInt(txData.R)
 	tx.S = hexToBigInt(txData.S)
-	
-	// Set transaction type
-	txType := hexToUint64(txData.Type)
-	tx.Type = types.TransactionType(txType)
-	
+	tx.Type = types.TransactionType(hexToUint64(txData.Type))
+
 	return tx, nil
 }
 
@@ -341,7 +370,7 @@ func (c *Client) GetTransactionReceipt(ctx context.Context, hash types.Hash) (*t
 	if err != nil {
 		return nil, fmt.Errorf("eth_getTransactionReceipt failed: %w", err)
 	}
-	
+
 	var receiptData struct {
 		TransactionHash   string `json:"transactionHash"`
 		TransactionIndex  string `json:"transactionIndex"`
@@ -367,15 +396,15 @@ func (c *Client) GetTransactionReceipt(ctx context.Context, hash types.Hash) (*t
 			Removed          bool     `json:"removed"`
 		} `json:"logs"`
 	}
-	
+
 	if err := json.Unmarshal(result, &receiptData); err != nil {
 		return nil, fmt.Errorf("failed to parse receipt: %w", err)
 	}
-	
+
 	if receiptData.TransactionHash == "" {
 		return nil, fmt.Errorf("receipt not found")
 	}
-	
+
 	receipt := &types.Receipt{
 		TransactionHash:   types.MustHashFromHex(receiptData.TransactionHash),
 		TransactionIndex:  hexToUint64(receiptData.TransactionIndex),
@@ -387,7 +416,7 @@ func (c *Client) GetTransactionReceipt(ctx context.Context, hash types.Hash) (*t
 		EffectiveGasPrice: hexToBigInt(receiptData.EffectiveGasPrice),
 		Type:              uint8(hexToUint64(receiptData.Type)),
 	}
-	
+
 	receipt.From, _ = types.AddressFromHex(receiptData.From)
 	if receiptData.To != "" {
 		to, _ := types.AddressFromHex(receiptData.To)
@@ -397,7 +426,7 @@ func (c *Client) GetTransactionReceipt(ctx context.Context, hash types.Hash) (*t
 		ca, _ := types.AddressFromHex(receiptData.ContractAddress)
 		receipt.ContractAddress = &ca
 	}
-	
+
 	// Parse logs
 	for _, logData := range receiptData.Logs {
 		log := &types.Log{
@@ -410,14 +439,14 @@ func (c *Client) GetTransactionReceipt(ctx context.Context, hash types.Hash) (*t
 			Data:             hexToBytes(logData.Data),
 		}
 		log.Address, _ = types.AddressFromHex(logData.Address)
-		
+
 		for _, topic := range logData.Topics {
 			log.Topics = append(log.Topics, types.MustHashFromHex(topic))
 		}
-		
+
 		receipt.Logs = append(receipt.Logs, log)
 	}
-	
+
 	return receipt, nil
 }
 
@@ -426,12 +455,12 @@ func (c *Client) GetBlockByNumber(ctx context.Context, blockNumber *big.Int, ful
 	if blockNumber != nil {
 		blockParam = fmt.Sprintf("0x%x", blockNumber)
 	}
-	
+
 	result, err := c.provider.Call(ctx, "eth_getBlockByNumber", blockParam, fullTx)
 	if err != nil {
 		return nil, fmt.Errorf("eth_getBlockByNumber failed: %w", err)
 	}
-	
+
 	return c.parseBlock(result, fullTx)
 }
 
@@ -440,41 +469,41 @@ func (c *Client) GetBlockByHash(ctx context.Context, hash types.Hash, fullTx boo
 	if err != nil {
 		return nil, fmt.Errorf("eth_getBlockByHash failed: %w", err)
 	}
-	
+
 	return c.parseBlock(result, fullTx)
 }
 
 func (c *Client) parseBlock(data json.RawMessage, fullTx bool) (*types.Block, error) {
 	var blockData struct {
-		Number           string   `json:"number"`
-		Hash             string   `json:"hash"`
-		ParentHash       string   `json:"parentHash"`
-		Nonce            string   `json:"nonce"`
-		Sha3Uncles       string   `json:"sha3Uncles"`
-		TransactionsRoot string   `json:"transactionsRoot"`
-		StateRoot        string   `json:"stateRoot"`
-		ReceiptsRoot     string   `json:"receiptsRoot"`
-		Miner            string   `json:"miner"`
-		Difficulty       string   `json:"difficulty"`
-		TotalDifficulty  string   `json:"totalDifficulty"`
-		ExtraData        string   `json:"extraData"`
-		Size             string   `json:"size"`
-		GasLimit         string   `json:"gasLimit"`
-		GasUsed          string   `json:"gasUsed"`
-		Timestamp        string   `json:"timestamp"`
-		BaseFeePerGas    string   `json:"baseFeePerGas"`
+		Number           string            `json:"number"`
+		Hash             string            `json:"hash"`
+		ParentHash       string            `json:"parentHash"`
+		Nonce            string            `json:"nonce"`
+		Sha3Uncles       string            `json:"sha3Uncles"`
+		TransactionsRoot string            `json:"transactionsRoot"`
+		StateRoot        string            `json:"stateRoot"`
+		ReceiptsRoot     string            `json:"receiptsRoot"`
+		Miner            string            `json:"miner"`
+		Difficulty       string            `json:"difficulty"`
+		TotalDifficulty  string            `json:"totalDifficulty"`
+		ExtraData        string            `json:"extraData"`
+		Size             string            `json:"size"`
+		GasLimit         string            `json:"gasLimit"`
+		GasUsed          string            `json:"gasUsed"`
+		Timestamp        string            `json:"timestamp"`
+		BaseFeePerGas    string            `json:"baseFeePerGas"`
 		Transactions     []json.RawMessage `json:"transactions"`
-		Uncles           []string `json:"uncles"`
+		Uncles           []string          `json:"uncles"`
 	}
-	
+
 	if err := json.Unmarshal(data, &blockData); err != nil {
 		return nil, fmt.Errorf("failed to parse block: %w", err)
 	}
-	
+
 	if blockData.Hash == "" {
 		return nil, fmt.Errorf("block not found")
 	}
-	
+
 	block := &types.Block{
 		Number:           hexToBigInt(blockData.Number),
 		Hash:             types.MustHashFromHex(blockData.Hash),
@@ -493,34 +522,32 @@ func (c *Client) parseBlock(data json.RawMessage, fullTx bool) (*types.Block, er
 		Timestamp:        hexToUint64(blockData.Timestamp),
 		BaseFeePerGas:    hexToBigInt(blockData.BaseFeePerGas),
 	}
-	
+
 	block.Miner, _ = types.AddressFromHex(blockData.Miner)
-	
+
 	// Parse uncles
 	for _, uncle := range blockData.Uncles {
 		block.Uncles = append(block.Uncles, types.MustHashFromHex(uncle))
 	}
-	
-	// Parse transactions
+
+	// Parse transactions. When fullTx is true the node returns full objects,
+	// which we decode into TransactionsFull while still recording the hashes.
 	for _, txRaw := range blockData.Transactions {
 		if fullTx {
-			// Full transaction object - would need to parse
-			// For now, just extract hash
-			var txObj struct {
-				Hash string `json:"hash"`
+			tx, err := parseTransaction(txRaw)
+			if err != nil || tx == nil {
+				continue
 			}
-			if err := json.Unmarshal(txRaw, &txObj); err == nil {
-				block.Transactions = append(block.Transactions, types.MustHashFromHex(txObj.Hash))
-			}
+			block.TransactionsFull = append(block.TransactionsFull, tx)
+			block.Transactions = append(block.Transactions, tx.Hash)
 		} else {
-			// Just hash string
 			var txHash string
 			if err := json.Unmarshal(txRaw, &txHash); err == nil {
 				block.Transactions = append(block.Transactions, types.MustHashFromHex(txHash))
 			}
 		}
 	}
-	
+
 	return block, nil
 }
 
@@ -529,11 +556,11 @@ func (c *Client) CallContract(ctx context.Context, msg chains.CallMsg, blockNumb
 	if blockNumber != nil {
 		blockParam = fmt.Sprintf("0x%x", blockNumber)
 	}
-	
+
 	callMsg := map[string]interface{}{
 		"to": msg.To.String(),
 	}
-	
+
 	if !msg.From.IsZero() {
 		callMsg["from"] = msg.From.String()
 	}
@@ -549,23 +576,23 @@ func (c *Client) CallContract(ctx context.Context, msg chains.CallMsg, blockNumb
 	if len(msg.Data) > 0 {
 		callMsg["data"] = fmt.Sprintf("0x%x", msg.Data)
 	}
-	
+
 	result, err := c.provider.Call(ctx, "eth_call", callMsg, blockParam)
 	if err != nil {
 		return nil, fmt.Errorf("eth_call failed: %w", err)
 	}
-	
+
 	var hexResult string
 	if err := json.Unmarshal(result, &hexResult); err != nil {
 		return nil, fmt.Errorf("failed to parse result: %w", err)
 	}
-	
+
 	return hexToBytes(hexResult), nil
 }
 
 func (c *Client) FilterLogs(ctx context.Context, query chains.LogQuery) ([]*types.Log, error) {
 	filter := make(map[string]interface{})
-	
+
 	if query.FromBlock != nil {
 		filter["fromBlock"] = fmt.Sprintf("0x%x", query.FromBlock)
 	}
@@ -596,12 +623,12 @@ func (c *Client) FilterLogs(ctx context.Context, query chains.LogQuery) ([]*type
 		}
 		filter["topics"] = topics
 	}
-	
+
 	result, err := c.provider.Call(ctx, "eth_getLogs", filter)
 	if err != nil {
 		return nil, fmt.Errorf("eth_getLogs failed: %w", err)
 	}
-	
+
 	var logsData []struct {
 		Address          string   `json:"address"`
 		Topics           []string `json:"topics"`
@@ -613,11 +640,11 @@ func (c *Client) FilterLogs(ctx context.Context, query chains.LogQuery) ([]*type
 		LogIndex         string   `json:"logIndex"`
 		Removed          bool     `json:"removed"`
 	}
-	
+
 	if err := json.Unmarshal(result, &logsData); err != nil {
 		return nil, fmt.Errorf("failed to parse logs: %w", err)
 	}
-	
+
 	logs := make([]*types.Log, len(logsData))
 	for i, logData := range logsData {
 		log := &types.Log{
@@ -630,19 +657,101 @@ func (c *Client) FilterLogs(ctx context.Context, query chains.LogQuery) ([]*type
 			Data:             hexToBytes(logData.Data),
 		}
 		log.Address, _ = types.AddressFromHex(logData.Address)
-		
+
 		for _, topic := range logData.Topics {
 			log.Topics = append(log.Topics, types.MustHashFromHex(topic))
 		}
-		
+
 		logs[i] = log
 	}
-	
+
 	return logs, nil
 }
 
+// logPollInterval is how often SubscribeToLogs polls for new logs over HTTP.
+var logPollInterval = 12 * time.Second
+
+// SubscribeToLogs returns a channel that emits logs matching the query as new
+// blocks are produced. Because the JSON-RPC transport is HTTP, the
+// subscription is implemented by polling eth_getLogs for new block ranges; the
+// channel is closed when the context is cancelled. For lower-latency delivery,
+// supply a WebSocket endpoint and use a streaming transport.
 func (c *Client) SubscribeToLogs(ctx context.Context, query chains.LogQuery) (<-chan *types.Log, error) {
-	return nil, fmt.Errorf("WebSocket subscription not implemented yet - use FilterLogs for polling")
+	// Determine the block to start streaming from.
+	start := query.FromBlock
+	if start == nil {
+		latest, err := c.GetBlockNumber(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to determine starting block: %w", err)
+		}
+		start = latest
+	}
+
+	out := make(chan *types.Log)
+
+	go func() {
+		defer close(out)
+
+		next := new(big.Int).Set(start)
+		ticker := time.NewTicker(logPollInterval)
+		defer ticker.Stop()
+
+		poll := func() bool {
+			latest, err := c.GetBlockNumber(ctx)
+			if err != nil || latest.Cmp(next) < 0 {
+				return true
+			}
+
+			// Respect an explicit ToBlock bound if one was supplied.
+			to := latest
+			if query.ToBlock != nil && query.ToBlock.Cmp(to) < 0 {
+				to = query.ToBlock
+			}
+			if to.Cmp(next) < 0 {
+				return true
+			}
+
+			rangeQuery := query
+			rangeQuery.FromBlock = new(big.Int).Set(next)
+			rangeQuery.ToBlock = new(big.Int).Set(to)
+
+			logs, err := c.FilterLogs(ctx, rangeQuery)
+			if err == nil {
+				for _, log := range logs {
+					select {
+					case out <- log:
+					case <-ctx.Done():
+						return false
+					}
+				}
+			}
+
+			next = new(big.Int).Add(to, big.NewInt(1))
+
+			// Stop once we've passed the requested upper bound.
+			if query.ToBlock != nil && next.Cmp(query.ToBlock) > 0 {
+				return false
+			}
+			return true
+		}
+
+		// Poll immediately, then on every tick.
+		if !poll() {
+			return
+		}
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if !poll() {
+					return
+				}
+			}
+		}
+	}()
+
+	return out, nil
 }
 
 func (c *Client) SyncProgress(ctx context.Context) (*chains.SyncProgress, error) {
@@ -650,24 +759,24 @@ func (c *Client) SyncProgress(ctx context.Context) (*chains.SyncProgress, error)
 	if err != nil {
 		return nil, fmt.Errorf("eth_syncing failed: %w", err)
 	}
-	
+
 	// If not syncing, returns false
 	var syncing bool
 	if err := json.Unmarshal(result, &syncing); err == nil && !syncing {
 		return &chains.SyncProgress{Syncing: false}, nil
 	}
-	
+
 	// Otherwise, returns sync progress object
 	var syncData struct {
 		StartingBlock string `json:"startingBlock"`
 		CurrentBlock  string `json:"currentBlock"`
 		HighestBlock  string `json:"highestBlock"`
 	}
-	
+
 	if err := json.Unmarshal(result, &syncData); err != nil {
 		return nil, fmt.Errorf("failed to parse sync progress: %w", err)
 	}
-	
+
 	return &chains.SyncProgress{
 		StartingBlock: hexToUint64(syncData.StartingBlock),
 		CurrentBlock:  hexToUint64(syncData.CurrentBlock),
@@ -705,4 +814,3 @@ func hexToBytes(s string) []byte {
 	b, _ := hex.DecodeString(s)
 	return b
 }
-

@@ -136,7 +136,7 @@ func TestPadAddress(t *testing.T) {
 	addr := mustDecodeHex("742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	var address [20]byte
 	copy(address[:], addr)
-	
+
 	// Need to import the Address type properly for this test
 	// For now, just test the helper functions
 	result := padBigInt(big.NewInt(256))
@@ -150,16 +150,16 @@ func TestGetTokenAddress(t *testing.T) {
 	addr, ok := GetTokenAddress("USDT", 1)
 	assert.True(t, ok)
 	assert.Equal(t, "0xdAC17F958D2ee523a2206206994597C13D831ec7", addr.String())
-	
+
 	// USDC on Polygon
 	addr, ok = GetTokenAddress("USDC", 137)
 	assert.True(t, ok)
 	assert.Equal(t, "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", addr.String())
-	
+
 	// Unknown token
 	_, ok = GetTokenAddress("UNKNOWN", 1)
 	assert.False(t, ok)
-	
+
 	// Token on unsupported chain
 	_, ok = GetTokenAddress("USDT", 999999)
 	assert.False(t, ok)
@@ -170,13 +170,13 @@ func TestTransferData(t *testing.T) {
 	addr := mustDecodeHex("742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	var toAddr [20]byte
 	copy(toAddr[:], addr)
-	
+
 	amount := big.NewInt(1000000)
-	
+
 	// Transfer function selector is 0xa9059cbb
 	data := append(fnTransfer, padAddress(toAddr)...)
 	data = append(data, padBigInt(amount)...)
-	
+
 	// Verify the data is correctly formatted
 	assert.Equal(t, 68, len(data)) // 4 bytes selector + 32 bytes address + 32 bytes amount
 	assert.Equal(t, byte(0xa9), data[0])

@@ -24,14 +24,14 @@ type Block struct {
 	GasLimit         uint64
 	GasUsed          uint64
 	Timestamp        uint64
-	
+
 	// EIP-1559 fields
 	BaseFeePerGas *big.Int
-	
+
 	// Transactions (can be hashes or full transactions)
 	Transactions     []Hash
 	TransactionsFull []*Transaction
-	
+
 	// Uncles
 	Uncles []Hash
 }
@@ -95,7 +95,7 @@ type Receipt struct {
 	Logs              []*Log
 	Status            uint64 // 1 = success, 0 = failure
 	EffectiveGasPrice *big.Int
-	
+
 	// EIP-1559
 	Type uint8
 }
@@ -109,4 +109,3 @@ func (r *Receipt) IsSuccess() bool {
 func (r *Receipt) IsContractCreation() bool {
 	return r.ContractAddress != nil
 }
-

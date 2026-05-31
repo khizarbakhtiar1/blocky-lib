@@ -26,12 +26,12 @@ func New(config Config) (*Client, error) {
 	if len(config.Chains) == 0 {
 		return nil, fmt.Errorf("at least one chain configuration is required")
 	}
-	
+
 	client := &Client{
 		chains: make(map[string]chains.Chain),
 		config: config,
 	}
-	
+
 	// Initialize chains
 	for name, chainConfig := range config.Chains {
 		chain, err := createChain(chainConfig)
@@ -40,7 +40,7 @@ func New(config Config) (*Client, error) {
 		}
 		client.chains[name] = chain
 	}
-	
+
 	return client, nil
 }
 
@@ -115,6 +115,103 @@ func (c *Client) SendRawTransaction(ctx context.Context, chainName string, signe
 	return chain.SendRawTransaction(ctx, signedTx)
 }
 
+// SendTransaction broadcasts an already-signed transaction to a specific chain.
+func (c *Client) SendTransaction(ctx context.Context, chainName string, tx *types.Transaction) (types.Hash, error) {
+	chain, err := c.GetChain(chainName)
+	if err != nil {
+		return types.Hash{}, err
+	}
+	return chain.SendTransaction(ctx, tx)
+}
+
+// Signer is implemented by anything that can sign a transaction, such as
+// *wallet.Wallet. It is accepted by SignAndSendTransaction so the client does
+// not depend on a concrete wallet implementation.
+type Signer interface {
+	Address() types.Address
+	SignTransaction(tx *types.Transaction) (*types.SignedTransaction, error)
+}
+
+// PopulateTransaction fills in any unset fields required to broadcast a
+// transaction on the given chain: chain ID, nonce, gas pricing and gas limit.
+// Fields that are already set are left untouched, so callers retain full
+// control when they need it.
+func (c *Client) PopulateTransaction(ctx context.Context, chainName string, from types.Address, tx *types.Transaction) error {
+	chain, err := c.GetChain(chainName)
+	if err != nil {
+		return err
+	}
+
+	if tx.ChainID == nil {
+		if id := chain.ChainID(); id != nil {
+			tx.ChainID = new(big.Int).Set(id)
+		}
+	}
+
+	if tx.Nonce == 0 {
+		nonce, err := chain.GetTransactionCount(ctx, from)
+		if err != nil {
+			return fmt.Errorf("failed to fetch nonce: %w", err)
+		}
+		tx.Nonce = nonce
+	}
+
+	switch tx.Type {
+	case types.LegacyTxType, types.AccessListTxType:
+		if tx.GasPrice == nil {
+			gasPrice, err := chain.SuggestGasPrice(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to suggest gas price: %w", err)
+			}
+			tx.GasPrice = gasPrice
+		}
+	default: // DynamicFeeTxType
+		if tx.MaxPriorityFeePerGas == nil {
+			tip, err := chain.SuggestGasTipCap(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to suggest gas tip: %w", err)
+			}
+			tx.MaxPriorityFeePerGas = tip
+		}
+		if tx.MaxFeePerGas == nil {
+			base, err := chain.SuggestGasPrice(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to suggest gas price: %w", err)
+			}
+			// maxFee = baseFee*2 + tip, a common headroom heuristic.
+			maxFee := new(big.Int).Mul(base, big.NewInt(2))
+			maxFee.Add(maxFee, tx.MaxPriorityFeePerGas)
+			tx.MaxFeePerGas = maxFee
+		}
+	}
+
+	if tx.GasLimit == 0 {
+		gas, err := chain.EstimateGas(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("failed to estimate gas: %w", err)
+		}
+		tx.GasLimit = gas
+	}
+
+	return nil
+}
+
+// SignAndSendTransaction populates missing fields, signs the transaction with
+// the provided signer, and broadcasts it. It returns the resulting
+// transaction hash.
+func (c *Client) SignAndSendTransaction(ctx context.Context, chainName string, signer Signer, tx *types.Transaction) (types.Hash, error) {
+	if err := c.PopulateTransaction(ctx, chainName, signer.Address(), tx); err != nil {
+		return types.Hash{}, err
+	}
+
+	signed, err := signer.SignTransaction(tx)
+	if err != nil {
+		return types.Hash{}, fmt.Errorf("failed to sign transaction: %w", err)
+	}
+
+	return c.SendRawTransaction(ctx, chainName, signed.RawTransaction)
+}
+
 // EstimateGas estimates the gas needed for a transaction
 func (c *Client) EstimateGas(ctx context.Context, chainName string, tx *types.Transaction) (uint64, error) {
 	chain, err := c.GetChain(chainName)
@@ -151,4 +248,3 @@ func (c *Client) Close() error {
 	}
 	return nil
 }
-

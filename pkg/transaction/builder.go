@@ -150,12 +150,12 @@ func (b *Builder) Build() (*types.Transaction, error) {
 	if b.err != nil {
 		return nil, b.err
 	}
-	
+
 	// Validate transaction
 	if err := b.validate(); err != nil {
 		return nil, err
 	}
-	
+
 	return b.tx, nil
 }
 
@@ -165,7 +165,7 @@ func (b *Builder) validate() error {
 	if b.tx.ChainID == nil {
 		return fmt.Errorf("chain ID is required")
 	}
-	
+
 	// Check gas settings based on type
 	if b.tx.Type == types.DynamicFeeTxType {
 		if b.tx.MaxFeePerGas == nil {
@@ -182,12 +182,12 @@ func (b *Builder) validate() error {
 			return fmt.Errorf("gasPrice is required for legacy transactions")
 		}
 	}
-	
+
 	// Check gas limit
 	if b.tx.GasLimit == 0 {
 		return fmt.Errorf("gas limit cannot be zero")
 	}
-	
+
 	return nil
 }
 
@@ -225,4 +225,3 @@ func ContractDeploy(bytecode []byte, chainID *big.Int) *Builder {
 	b.tx.ChainID = chainID
 	return b
 }
-

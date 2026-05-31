@@ -27,7 +27,7 @@ func NewProvider(urls []string, timeout time.Duration) *Provider {
 	if len(urls) == 0 {
 		panic("at least one RPC URL is required")
 	}
-	
+
 	return &Provider{
 		urls: urls,
 		client: &http.Client{
@@ -56,8 +56,8 @@ type Response struct {
 
 // RPCError represents a JSON-RPC error
 type RPCError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 }
 
@@ -74,19 +74,19 @@ func (p *Provider) Call(ctx context.Context, method string, params ...interface{
 		Params:  params,
 		ID:      1,
 	}
-	
+
 	var lastErr error
 	for attempt := 0; attempt < p.maxRetries; attempt++ {
 		url := p.getCurrentURL()
-		
+
 		result, err := p.makeRequest(ctx, url, req)
 		if err == nil {
 			return result, nil
 		}
-		
+
 		lastErr = err
 		p.rotateURL()
-		
+
 		// Exponential backoff
 		if attempt < p.maxRetries-1 {
 			backoff := time.Duration(attempt+1) * 100 * time.Millisecond
@@ -97,7 +97,7 @@ func (p *Provider) Call(ctx context.Context, method string, params ...interface{
 			}
 		}
 	}
-	
+
 	return nil, fmt.Errorf("all RPC endpoints failed: %w", lastErr)
 }
 
@@ -107,35 +107,35 @@ func (p *Provider) makeRequest(ctx context.Context, url string, req *Request) (j
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	
+
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "application/json")
-	
+
 	resp, err := p.client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("HTTP error %d: %s", resp.StatusCode, string(bodyBytes))
 	}
-	
+
 	var rpcResp Response
 	if err := json.NewDecoder(resp.Body).Decode(&rpcResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
-	
+
 	if rpcResp.Error != nil {
 		return nil, rpcResp.Error
 	}
-	
+
 	return rpcResp.Result, nil
 }
 
@@ -182,31 +182,31 @@ func (b *BatchRequest) Send(ctx context.Context) ([]json.RawMessage, error) {
 	if len(b.requests) == 0 {
 		return []json.RawMessage{}, nil
 	}
-	
+
 	body, err := json.Marshal(b.requests)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal batch: %w", err)
 	}
-	
+
 	url := b.provider.getCurrentURL()
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	httpReq.Header.Set("Content-Type", "application/json")
-	
+
 	resp, err := b.provider.client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	var responses []Response
 	if err := json.NewDecoder(resp.Body).Decode(&responses); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
-	
+
 	results := make([]json.RawMessage, len(responses))
 	for i, r := range responses {
 		if r.Error != nil {
@@ -214,7 +214,7 @@ func (b *BatchRequest) Send(ctx context.Context) ([]json.RawMessage, error) {
 		}
 		results[i] = r.Result
 	}
-	
+
 	return results, nil
 }
 
@@ -223,4 +223,3 @@ func (p *Provider) Close() error {
 	p.client.CloseIdleConnections()
 	return nil
 }
-
